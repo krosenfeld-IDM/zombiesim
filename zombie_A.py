@@ -5,6 +5,7 @@ Code from pipeline updating from the starsim/diseases/*.py files
 import matplotlib.pyplot as plt
 import sciris as sc
 import numpy as np
+import starsim as ss
 
 class Zombie(ss.SIR):
     """ Extent the base SIR class to represent Zombies! """
