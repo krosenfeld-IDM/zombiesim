@@ -150,7 +150,7 @@ demog = [births, deaths]
 interventions = KillZombies(year=2024, rate=0.1)
 
 # And finally bring everything together in a sim
-sim_pars = dict(start=2024, end=2040, dt=0.5, verbose=0)
+sim_pars = dict(start=2024, stop=2040, dt=0.5, verbose=0)
 sim = ss.Sim(sim_pars, people=people, diseases=zombie, networks=networks, demographics=demog, interventions=interventions)
 
 # Run the sim and plot results
