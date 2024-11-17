@@ -77,8 +77,8 @@ class Zombie(ss.SIR):
         """ Initialize results """
         super().init_results()
         sim = self.sim
-        self.results += [ss.Result(self.name, 'cum_congenital', sim.npts, dtype=int, scale=True)]
-        self.results += [ss.Result(self.name, 'cum_deaths', sim.npts, dtype=int, scale=True)]
+        self.results += [ss.Result('cum_congenital', dtype=int, scale=True)]
+        self.results += [ss.Result('cum_deaths', dtype=int, scale=True)]
         return
 
     def update_results(self):
