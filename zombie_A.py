@@ -76,16 +76,17 @@ class Zombie(ss.SIR):
     def init_results(self):
         """ Initialize results """
         super().init_results()
-        sim = self.sim
-        self.results += [ss.Result('cum_congenital', dtype=int, scale=True)]
-        self.results += [ss.Result('cum_deaths', dtype=int, scale=True)]
+        self.define_results(
+            ss.Result('cum_congenital', dtype=int, scale=True),
+            ss.Result('cum_deaths', dtype=int, scale=True),
+        )
         return
 
     def update_results(self):
         """ Update results on each time step """
         super().update_results()
         res = self.results
-        ti = self.sim.ti
+        ti = self.ti
         res.cum_congenital[ti] = self.cum_congenital
         res.cum_deaths[ti] = self.cum_deaths
         return
