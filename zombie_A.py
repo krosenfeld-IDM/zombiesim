@@ -139,7 +139,7 @@ class KillZombies(ss.Intervention):
         super().__init__(**kwargs)
 
         # The killing rate is an interpolation of year-rate values
-        self.p = ss.bernoulli(p=lambda self, sim, uids: np.interp(sim.year, self.year, self.rate * sim.dt))
+        self.p = ss.bernoulli(p=lambda self, sim, uids: np.interp(self.t.now('year'), self.year, self.rate*self.t.dt))
         return
 
     def step(self):
