@@ -142,8 +142,9 @@ class KillZombies(ss.Intervention):
         self.p = ss.bernoulli(p=lambda self, sim, uids: np.interp(sim.year, self.year, self.rate * sim.dt))
         return
 
-    def apply(self, sim):
-        if sim.year < self.year[0]:
+    def step(self):
+        sim = self.sim
+        if self.t.now('year') < self.year[0]:
             return
 
         eligible = ~sim.people.alive.asnew()
