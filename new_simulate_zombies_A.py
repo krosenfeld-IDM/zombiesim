@@ -204,7 +204,7 @@ def run_zombies(scen, rand_seed, zombie_pars=None, death_pars=None, intvs=[], **
     # Zombies
     zombie_defaults = dict(
         init_prev = 0.03,
-        beta = {'random': 0.05, 'maternal': 0.5},
+        beta = {'random': ss.beta(0.05), 'maternal': ss.beta(0.5)},
         p_fast = ss.bernoulli(p=0.1),
         p_death_on_zombie_infection = ss.bernoulli(p=0.25),
         p_symptomatic = ss.bernoulli(p=1.0),
@@ -235,13 +235,13 @@ def run_zombies(scen, rand_seed, zombie_pars=None, death_pars=None, intvs=[], **
     interventions = [interventions] + sc.promotetolist(intvs) # Add interventions passed in
 
     # Create and run the simulation
-    sim_pars = dict(start=2024, end=2040, dt=0.5, rand_seed=rand_seed, label=scen, verbose=0)
+    sim_pars = dict(start=2024, stop=2040, dt=0.5, rand_seed=rand_seed, label=scen, verbose=0)
     sim = ss.Sim(sim_pars, people=people, diseases=zombie, networks=networks, demographics=demog, interventions=interventions)
     sim.run()
 
     # Package results
     df = pd.DataFrame( {
-        'Year': sim.yearvec,
+        'Year': sim.timevec,
         'Population': sim.results.n_alive,
         'Humans': sim.results.n_alive - sim.results.zombie.n_infected,
         'Zombies': sim.results.zombie.n_infected,
@@ -273,6 +273,7 @@ for skey, scen in scens.items():
 print(f'Running {len(cfgs)} zombie simulations...')
 T = sc.tic()
 results += sc.parallelize(run_zombies, iterkwargs=cfgs)
+
 print(f'Completed in {sc.toc(T, output=True):.1f}s')
 df = pd.concat(results).replace(np.inf, np.nan)
 
