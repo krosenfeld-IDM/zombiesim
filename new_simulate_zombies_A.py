@@ -115,7 +115,7 @@ people = ss.People(n_agents=5_000) # People, as before
 # Configure and create an instance of the Zombie class
 zombie_pars = dict(
     init_prev = 0.03,
-    beta = {'random': 0.05, 'maternal': 0.5},
+    beta = {'random': ss.beta(0.05), 'maternal': ss.beta(0.5)},
     p_fast = ss.bernoulli(p=0.1),
     p_death_on_zombie_infection = ss.bernoulli(p=0.25),
     p_symptomatic = ss.bernoulli(p=1.0),
