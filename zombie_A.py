@@ -207,3 +207,18 @@ class ZombieConnector(ss.Connector):
         slow.rel_sus[fast.infected] = self.pars.rel_sus
 
         return
+    
+    def step(self):
+        """ Specify cross protection between fast and slow zombies """
+
+        ppl = self.sim.people
+        fast = self.sim.diseases['fast_zombie']
+        slow = self.sim.diseases['slow_zombie']
+
+        fast.rel_sus[ppl.alive] = 1
+        fast.rel_sus[slow.infected] = self.pars.rel_sus
+
+        slow.rel_sus[ppl.alive] = 1
+        slow.rel_sus[fast.infected] = self.pars.rel_sus
+
+        return
