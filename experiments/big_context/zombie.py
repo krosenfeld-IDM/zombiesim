@@ -135,12 +135,12 @@ class KillZombies(ss.Intervention):
         self.year = sc.promotetoarray(year)
         self.rate = sc.promotetoarray(rate)
         super().__init__(**kwargs)
-        self.p = ss.bernoulli(p= lambda self, sim, uids: np.interp(sim.now('year'), self.year, self.rate))
+        self.p = ss.bernoulli(p= lambda self, sim, uids: np.interp(sim.t.now('year'), self.year, self.rate*self.t.dt))
         return
         
     def step(self):
         sim = self.sim
-        if sim.now('year') < self.year[0]:
+        if sim.t.now('year') < self.year[0]:
             return
         
         eligible = ~sim.people.alive.asnew()
