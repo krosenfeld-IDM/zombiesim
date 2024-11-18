@@ -125,30 +125,39 @@ class DeathZombies(ss.Deaths):
 
         return len(death_uids)
 
-
 class KillZombies(ss.Intervention):
     """ Intervention that kills symptomatic zombies at a user-specified rate """
-    def __init__(self, year, rate, **kwargs):
-        self.requires = Zombie
-        self.year = sc.promotetoarray(year)
-        self.rate = sc.promotetoarray(rate)
-        super().__init__(**kwargs)
 
-        # The killing rate is an interpolation of year-rate values
-        self.p = ss.bernoulli(p= lambda self, sim, uids: np.interp(sim.year, self.year, self.rate*sim.dt))
+    def __init__(self, year=None, rate=None, **kwargs):
+        year = sc.promotetoarray(year)
+        rate = sc.promotetoarray(rate)
+        pars = dict(
+            year = year,
+            rate = rate,
+            p = ss.bernoulli(p=0)  # Placeholder value
+        )
+        super().__init__(pars=pars, **kwargs)
+        self.requires = Zombie
         return
 
-    def apply(self, sim):
-        if sim.year < self.year[0]:
+    def init_pre(self, sim):
+        super().init_pre(sim)
+        # Update any time-dependent parameters based on the sim's timestep
+        # Set up the probability function once sim's time is initialized
+        self.pars.p.set(p=lambda module, sim, uids: np.interp(sim.t.now('year'), self.pars.year, self.pars.rate * sim.t.dt_year))
+        return
+
+    def step(self):
+        """ Perform the intervention on each timestep. """
+        if self.sim.t.now('year') < self.pars.year[0]:
             return
 
-        eligible = ~sim.people.alive.asnew()
-        for name, disease in sim.diseases.items():
+        eligible = ~self.sim.people.alive.asnew()
+        for name, disease in self.sim.diseases.items():
             if 'zombie' in name:
                 eligible = eligible | (disease.infected & disease.symptomatic)
-        death_uids = self.p.filter(eligible.uids)
-
-        sim.people.request_death(death_uids)
+        death_uids = self.pars.p.filter(eligible.uids)
+        self.sim.people.request_death(death_uids)
 
         return len(death_uids)
 
