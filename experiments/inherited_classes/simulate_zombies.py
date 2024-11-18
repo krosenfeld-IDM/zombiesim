@@ -35,7 +35,7 @@
 
 import starsim as ss # starsim is the Starsim framwork
 # from zombie import * # zombie is a custom zombie library, see zombie.py
-from zombie_B import *
+from zombie import *
 
 # Numerical librarires and utilities
 import numpy as np
