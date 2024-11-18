@@ -7,23 +7,22 @@ class Zombie(ss.SIR):
     def __init__(self, pars=None, **kwargs):
         super().__init__()
 
-        self.default_pars(
+        self.define_pars(
             inherit = True, # Inherit from SIR defaults
-            dur_inf = ss.constant(v=1000), # Once a zombie, always a zombie! Units are years.
+            dur_inf = ss.constant(v=ss.years(1000)), # Once a zombie, always a zombie! Units are years.
 
             p_fast = ss.bernoulli(p=0.10), # Probability of being fast
-            dur_fast = ss.constant(v=1000), # Duration of fast before becoming slow
+            dur_fast = ss.constant(v=ss.years(1000)), # Duration of fast before becoming slow
             p_symptomatic = ss.bernoulli(p=1.0), # Probability of symptoms
             p_death_on_zombie_infection = ss.bernoulli(p=0.25), # Probability of death at time of infection
-
             p_death = ss.bernoulli(p=1), # All zombies die instead of recovering
         )
         self.update_pars(pars, **kwargs)
 
-        self.add_states(
-            ss.BoolArr('fast', default=self.pars.p_fast), # True if fast
-            ss.BoolArr('symptomatic', default=False), # True if symptomatic
-            ss.FloatArr('ti_slow'), # Time index of changing from fast to slow
+        self.define_states(
+            ss.State('fast', default=self.pars.p_fast, label='Fast zombie'), # True if fast
+            ss.State('symptomatic', label='Symptomatic zombie'), # True if symptomatic
+            ss.FloatArr('ti_slow', label='Time of becoming slow zombie'), # Time index of changing from fast to slow
         )
 
         # Counters for reporting
@@ -32,21 +31,21 @@ class Zombie(ss.SIR):
 
         return
 
-    def update_pre(self):
+    def step_state(self):
         """ Updates states before transmission on this timestep """
-        self.cum_deaths += np.count_nonzero(self.ti_dead <= self.sim.ti)
+        self.cum_deaths += (self.ti_dead <= self.ti).sum()
 
-        super().update_pre()
+        super().step_state()
 
         # Transition from fast to slow
-        fast_to_slow_uids = (self.infected & self.fast & (self.ti_slow <= self.sim.ti)).uids
+        fast_to_slow_uids = (self.infected & self.fast & (self.ti_slow <= self.ti)).uids
         self.fast[fast_to_slow_uids] = False
 
         return
 
-    def set_prognoses(self, uids, source_uids=None):
+    def set_prognoses(self, uids, sources=None):
         """ Set prognoses of new zombies """
-        super().set_prognoses(uids, source_uids)
+        super().set_prognoses(uids, sources)
 
         # Choose which new zombies will be symptomatic
         self.symptomatic[uids] = self.pars.p_symptomatic.rvs(uids)
@@ -54,7 +53,7 @@ class Zombie(ss.SIR):
         # Set timer for fast to slow transition
         fast_uids = uids[self.fast[uids]]
         dur_fast = self.pars.dur_fast.rvs(fast_uids)
-        self.ti_slow[fast_uids] = np.round(self.sim.ti + dur_fast / self.sim.dt)
+        self.ti_slow[fast_uids] = self.ti + dur_fast # Already in time units
 
         # Handle possible immediate death on zombie infection
         dead_uids = self.pars.p_death_on_zombie_infection.filter(uids)
@@ -62,45 +61,49 @@ class Zombie(ss.SIR):
         self.sim.people.request_death(dead_uids)
         return
 
-    def set_congenital(self, target_uids, source_uids=None):
+    def set_congenital(self, uids, sources=None):
         """ Congenital zombies """
-        self.cum_congenital += len(target_uids)
-        self.set_prognoses(target_uids, source_uids)
+        self.cum_congenital += len(uids)
+        self.set_prognoses(uids, sources)
         return
 
     def init_results(self):
         """ Initialize results """
         super().init_results()
-        sim = self.sim
-        self.results += [ ss.Result(self.name, 'cum_congenital', sim.npts, dtype=int, scale=True) ]
-        self.results += [ ss.Result(self.name, 'cum_deaths', sim.npts, dtype=int, scale=True) ]
+        self.define_results(
+            ss.Result('cum_congenital', dtype=int, scale=True, label='Cumulative congenital zombies'),
+            ss.Result('cum_deaths', dtype=int, scale=True, label='Cumulative deaths'),
+        )
         return
 
     def update_results(self):
         """ Update results on each time step """
         super().update_results()
-        res = self.results
-        ti = self.sim.ti
-        res.cum_congenital[ti] = self.cum_congenital
-        res.cum_deaths[ti] = self.cum_deaths
+        self.results.cum_congenital[self.ti] = self.cum_congenital
+        self.results.cum_deaths[self.ti] = self.cum_deaths
+        return
+
+    def step_die(self, uids):
+        """ Reset infected/recovered flags for dead agents """
+        super().step_die(uids)
+        self.fast[uids] = False
+        self.symptomatic[uids] = False
         return
 
 
 class DeathZombies(ss.Deaths):
     """ Extension of Deaths to make some agents who die turn into zombies """
     def __init__(self, pars=None, metadata=None, **kwargs):
-        super().__init__(death_rate=kwargs.pop('death_rate', None))
-        self.default_pars(
+        super().__init__()
+        self.define_pars(
             inherit = True,
             p_zombie_on_natural_death = ss.bernoulli(p=0.75), # Probability of becoming a zombie on death
+            death_rate = kwargs.pop('death_rate', None),
         )
-
-        kwargs.pop('death_rate', None)
         self.update_pars(pars, **kwargs)
-
         return
 
-    def apply_deaths(self):
+    def step(self):
         """ Select people to die """
 
         # Ensure that zombies do not die of natural causes
@@ -132,25 +135,22 @@ class KillZombies(ss.Intervention):
         self.year = sc.promotetoarray(year)
         self.rate = sc.promotetoarray(rate)
         super().__init__(**kwargs)
-
-        # The killing rate is an interpolation of year-rate values
-        self.p = ss.bernoulli(p= lambda self, sim, uids: np.interp(sim.year, self.year, self.rate*sim.dt))
+        self.p = ss.bernoulli(p= lambda self, sim, uids: np.interp(sim.now('year'), self.year, self.rate))
         return
-
-    def apply(self, sim):
-        if sim.year < self.year[0]:
+        
+    def step(self):
+        sim = self.sim
+        if sim.now('year') < self.year[0]:
             return
-
+        
         eligible = ~sim.people.alive.asnew()
         for name, disease in sim.diseases.items():
             if 'zombie' in name:
                 eligible = eligible | (disease.infected & disease.symptomatic)
         death_uids = self.p.filter(eligible.uids)
-
         sim.people.request_death(death_uids)
-
         return len(death_uids)
-
+        
 class zombie_vaccine(ss.sir_vaccine):
     """
     Create a vaccine product that affects the probability of infection.
@@ -177,15 +177,16 @@ class ZombieConnector(ss.Connector):
     """ Connect fast and slow zombies so agents don't become double-zombies """
 
     def __init__(self, pars=None, **kwargs):
-        super().__init__(label='Zombie Connector', requires=[Zombie])
-
-        self.default_pars(
+        super().__init__()
+        self.define_pars(
+            label = 'Zombie Connector',
+            requires = [Zombie],
             rel_sus = 0
         )
         self.update_pars(pars, **kwargs)
         return
 
-    def update(self):
+    def step(self):
         """ Specify cross protection between fast and slow zombies """
 
         ppl = self.sim.people
