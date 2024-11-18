@@ -10,9 +10,9 @@ class Zombie(ss.SIR):
         # Define parameters, inheriting defaults from SIR
         self.define_pars(
             inherit = True,
-            dur_inf = ss.peryear(1000), # Once a zombie, always a zombie!
+            dur_inf = ss.constant(1000), # Once a zombie, always a zombie!
             p_fast = ss.bernoulli(p=0.10), # Probability of being fast
-            dur_fast = ss.peryear(1000), # Duration of fast before becoming slow
+            dur_fast = ss.constant(1000), # Duration of fast before becoming slow
             p_symptomatic = ss.bernoulli(p=1.0), # Probability of symptoms
             p_death_on_zombie_infection = ss.bernoulli(p=0.25), # Probability of death at time of infection
             p_death = ss.bernoulli(p=1), # All zombies die instead of recovering
