@@ -34,7 +34,8 @@
 # %autoreload 2
 
 import starsim as ss # starsim is the Starsim framwork
-from zombie import * # zombie is a custom zombie library, see zombie.py
+# from zombie import * # zombie is a custom zombie library, see zombie.py
+from zombie_A import *
 
 # Numerical librarires and utilities
 import numpy as np
@@ -78,6 +79,7 @@ sim.run()
 sim.plot();
 pyplot.savefig('sir.png')
 
+
 # %% [markdown]
 # ---
 # ### But we want ZOMBIES!!!
@@ -113,7 +115,7 @@ people = ss.People(n_agents=5_000) # People, as before
 # Configure and create an instance of the Zombie class
 zombie_pars = dict(
     init_prev = 0.03,
-    beta = {'random': 0.05, 'maternal': 0.5},
+    beta = {'random': ss.beta(0.05), 'maternal': ss.beta(0.5)},
     p_fast = ss.bernoulli(p=0.1),
     p_death_on_zombie_infection = ss.bernoulli(p=0.25),
     p_symptomatic = ss.bernoulli(p=1.0),
@@ -148,7 +150,7 @@ demog = [births, deaths]
 interventions = KillZombies(year=2024, rate=0.1)
 
 # And finally bring everything together in a sim
-sim_pars = dict(start=2024, end=2040, dt=0.5, verbose=0)
+sim_pars = dict(start=2024, stop=2040, dt=0.5, verbose=0)
 sim = ss.Sim(sim_pars, people=people, diseases=zombie, networks=networks, demographics=demog, interventions=interventions)
 
 # Run the sim and plot results
@@ -202,7 +204,7 @@ def run_zombies(scen, rand_seed, zombie_pars=None, death_pars=None, intvs=[], **
     # Zombies
     zombie_defaults = dict(
         init_prev = 0.03,
-        beta = {'random': 0.05, 'maternal': 0.5},
+        beta = {'random': ss.beta(0.05), 'maternal': ss.beta(0.5)},
         p_fast = ss.bernoulli(p=0.1),
         p_death_on_zombie_infection = ss.bernoulli(p=0.25),
         p_symptomatic = ss.bernoulli(p=1.0),
@@ -233,13 +235,13 @@ def run_zombies(scen, rand_seed, zombie_pars=None, death_pars=None, intvs=[], **
     interventions = [interventions] + sc.promotetolist(intvs) # Add interventions passed in
 
     # Create and run the simulation
-    sim_pars = dict(start=2024, end=2040, dt=0.5, rand_seed=rand_seed, label=scen, verbose=0)
+    sim_pars = dict(start=2024, stop=2040, dt=0.5, rand_seed=rand_seed, label=scen, verbose=0)
     sim = ss.Sim(sim_pars, people=people, diseases=zombie, networks=networks, demographics=demog, interventions=interventions)
     sim.run()
 
     # Package results
     df = pd.DataFrame( {
-        'Year': sim.yearvec,
+        'Year': sim.timevec,
         'Population': sim.results.n_alive,
         'Humans': sim.results.n_alive - sim.results.zombie.n_infected,
         'Zombies': sim.results.zombie.n_infected,
@@ -271,6 +273,7 @@ for skey, scen in scens.items():
 print(f'Running {len(cfgs)} zombie simulations...')
 T = sc.tic()
 results += sc.parallelize(run_zombies, iterkwargs=cfgs)
+
 print(f'Completed in {sc.toc(T, output=True):.1f}s')
 df = pd.concat(results).replace(np.inf, np.nan)
 
@@ -360,7 +363,7 @@ def run_multizombie(rand_seed):
     # Start with parameters for slow zombies
     slow_zombie_pars = dict(
         init_prev = 0.03,
-        beta = {'random': 0.05, 'maternal': 0.5},
+        beta = {'random': ss.beta(0.05), 'maternal': ss.beta(0.5)},
         p_fast = ss.bernoulli(p=0), # <--- Notice NONE are fast
         p_death_on_zombie_infection = ss.bernoulli(p=0.25),
         p_symptomatic = ss.bernoulli(p=1.0),
@@ -398,7 +401,7 @@ def run_multizombie(rand_seed):
 
     killzombies = KillZombies(year=2024, rate=0.1)
 
-    sim_pars = dict(start=2024, end=2040, dt=0.5, rand_seed=rand_seed, label=scen, verbose=0)
+    sim_pars = dict(start=2024, stop=2040, dt=0.5, rand_seed=rand_seed, label=scen, verbose=0)
     sim = ss.Sim(sim_pars, people=people, diseases=zombies, networks=networks, demographics=demog, interventions=killzombies, connectors=connector)
     sim.run()
 
@@ -407,7 +410,7 @@ def run_multizombie(rand_seed):
     for speed in ['Fast', 'Slow']:
         res = sim.results.fast_zombie if speed == 'Fast' else sim.results.slow_zombie
         df = pd.DataFrame( {
-            'Year': sim.yearvec,
+            'Year': sim.timevec,
             'Number of Zombies': res.n_infected,
             'Prevalence': res.prevalence,
             'Zombie-Cause Mortality': res.cum_deaths,
