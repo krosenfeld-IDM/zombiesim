@@ -1,12 +1,6 @@
 import starsim as ss
 import sciris as sc
 import numpy as np
-Here's the updated code reflecting the changes you provided:
-
-```python
-import matplotlib.pyplot as plt
-import sciris as sc
-import numpy as np
 
 class Zombie(ss.SIR):
     """ Extent the base SIR class to represent Zombies! """
