@@ -363,7 +363,7 @@ def run_multizombie(rand_seed):
     # Start with parameters for slow zombies
     slow_zombie_pars = dict(
         init_prev = 0.03,
-        beta = {'random': 0.05, 'maternal': 0.5},
+        beta = {'random': ss.beta(0.05), 'maternal': ss.beta(0.5)},
         p_fast = ss.bernoulli(p=0), # <--- Notice NONE are fast
         p_death_on_zombie_infection = ss.bernoulli(p=0.25),
         p_symptomatic = ss.bernoulli(p=1.0),
@@ -401,7 +401,7 @@ def run_multizombie(rand_seed):
 
     killzombies = KillZombies(year=2024, rate=0.1)
 
-    sim_pars = dict(start=2024, end=2040, dt=0.5, rand_seed=rand_seed, label=scen, verbose=0)
+    sim_pars = dict(start=2024, stop=2040, dt=0.5, rand_seed=rand_seed, label=scen, verbose=0)
     sim = ss.Sim(sim_pars, people=people, diseases=zombies, networks=networks, demographics=demog, interventions=killzombies, connectors=connector)
     sim.run()
 
@@ -410,7 +410,7 @@ def run_multizombie(rand_seed):
     for speed in ['Fast', 'Slow']:
         res = sim.results.fast_zombie if speed == 'Fast' else sim.results.slow_zombie
         df = pd.DataFrame( {
-            'Year': sim.yearvec,
+            'Year': sim.timevec,
             'Number of Zombies': res.n_infected,
             'Prevalence': res.prevalence,
             'Zombie-Cause Mortality': res.cum_deaths,
