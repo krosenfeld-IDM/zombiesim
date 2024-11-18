@@ -1,6 +1,11 @@
-import starsim as ss
+"""
+Code from pipeline updating from the starsim/diseases/*.py files
+"""
+
+import matplotlib.pyplot as plt
 import sciris as sc
 import numpy as np
+import starsim as ss
 
 class Zombie(ss.SIR):
     """ Extent the base SIR class to represent Zombies! """
@@ -71,16 +76,17 @@ class Zombie(ss.SIR):
     def init_results(self):
         """ Initialize results """
         super().init_results()
-        sim = self.sim
-        self.results += [ss.Result(self.name, 'cum_congenital', sim.npts, dtype=int, scale=True)]
-        self.results += [ss.Result(self.name, 'cum_deaths', sim.npts, dtype=int, scale=True)]
+        self.define_results(
+            ss.Result('cum_congenital', dtype=int, scale=True),
+            ss.Result('cum_deaths', dtype=int, scale=True),
+        )
         return
 
     def update_results(self):
         """ Update results on each time step """
         super().update_results()
         res = self.results
-        ti = self.sim.ti
+        ti = self.ti
         res.cum_congenital[ti] = self.cum_congenital
         res.cum_deaths[ti] = self.cum_deaths
         return
@@ -134,11 +140,12 @@ class KillZombies(ss.Intervention):
         super().__init__(**kwargs)
 
         # The killing rate is an interpolation of year-rate values
-        self.p = ss.bernoulli(p=lambda self, sim, uids: np.interp(sim.year, self.year, self.rate * sim.dt))
+        self.p = ss.bernoulli(p=lambda self, sim, uids: np.interp(self.t.now('year'), self.year, self.rate*self.t.dt))
         return
 
-    def apply(self, sim):
-        if sim.year < self.year[0]:
+    def step(self):
+        sim = self.sim
+        if self.t.now('year') < self.year[0]:
             return
 
         eligible = ~sim.people.alive.asnew()
@@ -177,7 +184,8 @@ class ZombieConnector(ss.Connector):
     """ Connect fast and slow zombies so agents don't become double-zombies """
 
     def __init__(self, pars=None, **kwargs):
-        super().__init__(label='Zombie Connector', requires=[Zombie])
+        self.requires = Zombie
+        super().__init__(label='Zombie Connector')
 
         self.define_pars(
             rel_sus=0
@@ -186,6 +194,21 @@ class ZombieConnector(ss.Connector):
         return
 
     def update(self):
+        """ Specify cross protection between fast and slow zombies """
+
+        ppl = self.sim.people
+        fast = self.sim.diseases['fast_zombie']
+        slow = self.sim.diseases['slow_zombie']
+
+        fast.rel_sus[ppl.alive] = 1
+        fast.rel_sus[slow.infected] = self.pars.rel_sus
+
+        slow.rel_sus[ppl.alive] = 1
+        slow.rel_sus[fast.infected] = self.pars.rel_sus
+
+        return
+    
+    def step(self):
         """ Specify cross protection between fast and slow zombies """
 
         ppl = self.sim.people
