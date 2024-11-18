@@ -81,46 +81,44 @@ class Zombie(ss.SIR):
         ti = self.sim.ti
         res.cum_congenital[ti] = self.cum_congenital
         res.cum_deaths[ti] = self.cum_deaths
-        return
+        return  
 
 
 class DeathZombies(ss.Deaths):
-    """ Extension of Deaths to make some agents who die turn into zombies """
+    
     def __init__(self, pars=None, metadata=None, **kwargs):
-        super().__init__(death_rate=kwargs.pop('death_rate', None))
+        super().__init__(pars=pars, metadata=metadata, **kwargs)
         self.default_pars(
-            inherit = True,
-            p_zombie_on_natural_death = ss.bernoulli(p=0.75), # Probability of becoming a zombie on death
+            inherit=True,
+            p_zombie_on_natural_death=ss.bernoulli(p=0.75),  # Probability of becoming a zombie on death
         )
-
-        kwargs.pop('death_rate', None)
-        self.update_pars(pars, **kwargs)
-
         return
-
+    
     def apply_deaths(self):
-        """ Select people to die """
+        """Select people to die."""
 
         # Ensure that zombies do not die of natural causes
-        not_zombie = self.sim.people.alive.asnew() # Zombies do not die of natural (demographic) causes
+        not_zombie = self.sim.people.alive.asnew()  # Zombies do not die of natural (demographic) causes
         for name, disease in self.sim.diseases.items():
             if 'zombie' in name:
                 not_zombie = not_zombie & (~disease.infected)
 
-        death_uids = self.pars.death_rate.filter(not_zombie.uids)
-        zombie_uids, death_uids = self.pars.p_zombie_on_natural_death.filter(death_uids, both=True)
+        # Filter death candidates
+        death_candidates = not_zombie.uids
+        death_prob_fn = self.pars.death_rate.filter(death_candidates)  # Use the updated filtering mechanism
+        zombie_uids, death_uids = self.pars.p_zombie_on_natural_death.filter(death_prob_fn, both=True)
 
-        # These uids will die
+        # Process deaths
         if len(death_uids):
             self.sim.people.request_death(death_uids)
 
-        # And these uids will become zombies
+        # Process zombies
         if len(zombie_uids):
-            # If we have fast_zombie and slow_zombie types, choose slow_zombie
-            zombie = 'zombie' if 'zombie' in self.sim.diseases else 'slow_zombie'
-            self.sim.diseases[zombie].set_prognoses(zombie_uids)
+            zombie_disease = 'zombie' if 'zombie' in self.sim.diseases else 'slow_zombie'
+            self.sim.diseases[zombie_disease].set_prognoses(zombie_uids)
 
         return len(death_uids)
+
 
 
 class KillZombies(ss.Intervention):
