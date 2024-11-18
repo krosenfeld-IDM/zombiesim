@@ -88,42 +88,42 @@ class Zombie(ss.SIR):
 
 
 class DeathZombies(ss.Deaths):
-    """ Extension of Deaths to make some agents who die turn into zombies """
+    """ 
+    Extension of Deaths to make some agents who die turn into zombies 
+    """
     def __init__(self, pars=None, metadata=None, **kwargs):
-        super().__init__(death_rate=kwargs.pop('death_rate', None))
-        self.default_pars(
-            inherit = True,
+        super().__init__(pars=pars, **kwargs)
+        self.define_pars(
             p_zombie_on_natural_death = ss.bernoulli(p=0.75), # Probability of becoming a zombie on death
         )
-
-        kwargs.pop('death_rate', None)
-        self.update_pars(pars, **kwargs)
-
         return
 
-    def apply_deaths(self):
-        """ Select people to die """
-
-        # Ensure that zombies do not die of natural causes
-        not_zombie = self.sim.people.alive.asnew() # Zombies do not die of natural (demographic) causes
-        for name, disease in self.sim.diseases.items():
+    def step(self):
+        """ 
+        Overwrite step to manage zombie transformation 
+        """
+        # Prevent zombies from dying of natural causes
+        not_zombie = self.sim.people.alive.asnew() 
+        for name, disease in self.sim.people.diseases.items():
             if 'zombie' in name:
-                not_zombie = not_zombie & (~disease.infected)
+                not_zombie = not_zombie & (~disease.infected) 
 
+        # Determine sets of UIDs that will die and those that will turn into zombies
         death_uids = self.pars.death_rate.filter(not_zombie.uids)
         zombie_uids, death_uids = self.pars.p_zombie_on_natural_death.filter(death_uids, both=True)
 
-        # These uids will die
+        # Remove agents set to die from the alive population
         if len(death_uids):
             self.sim.people.request_death(death_uids)
 
-        # And these uids will become zombies
-        if len(zombie_uids):
-            # If we have fast_zombie and slow_zombie types, choose slow_zombie
+        # Transform set agents into zombies
+        if len(zombie_uids) > 0:
+            # Determine 'zombie' disease type
             zombie = 'zombie' if 'zombie' in self.sim.diseases else 'slow_zombie'
             self.sim.diseases[zombie].set_prognoses(zombie_uids)
 
         return len(death_uids)
+
 
 class KillZombies(ss.Intervention):
     """ Intervention that kills symptomatic zombies at a user-specified rate """
