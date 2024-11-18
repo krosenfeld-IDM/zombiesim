@@ -184,7 +184,8 @@ class ZombieConnector(ss.Connector):
     """ Connect fast and slow zombies so agents don't become double-zombies """
 
     def __init__(self, pars=None, **kwargs):
-        super().__init__(label='Zombie Connector', requires=[Zombie])
+        self.requires = Zombie
+        super().__init__(label='Zombie Connector')
 
         self.define_pars(
             rel_sus=0
