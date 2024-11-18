@@ -160,10 +160,10 @@ class KillZombies(ss.Intervention):
         self.sim.people.request_death(death_uids)
 
         return len(death_uids)
-
-class zombie_vaccine(ss.sir_vaccine):
+    
+class zombie_vaccine(ss.Intervention):
     """
-    Create a vaccine product that affects the probability of infection.
+    Create a vaccine intervention that affects the probability of infection.
     
     The vaccine can be either "leaky", in which everyone who receives the vaccine 
     receives the same amount of protection (specified by the efficacy parameter) 
@@ -175,14 +175,31 @@ class zombie_vaccine(ss.sir_vaccine):
         efficacy (float): efficacy of the vaccine (0<=efficacy<=1)
         leaky (bool): see above
     """
-    def administer(self, people, uids):        
-        if self.pars.leaky:
-            people.zombie.rel_sus[uids] *= 1-self.pars.efficacy
+    def __init__(self, efficacy, leaky=True, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.efficacy = efficacy
+        self.leaky = leaky
+
+    def administer(self, uids):
+        people = self.sim.people
+        if self.leaky:
+            people.zombie.rel_sus[uids] *= 1 - self.efficacy
         else:
-            people.zombie.rel_sus[uids] *= np.random.binomial(1, 1-self.pars.efficacy, len(uids))
+            vaccine_effect = np.random.binomial(1, 1 - self.efficacy, len(uids))
+            people.zombie.rel_sus[uids] *= vaccine_effect
         return
 
-    
+    def step(self):
+        eligible_uids = self.check_eligibility()
+        if len(eligible_uids):
+            self.administer(eligible_uids)
+        return
+
+    def check_eligibility(self):
+        """ Override this method to provide eligibility criteria, defaults to all people. """
+        return self.sim.people.auids
+
+
 class ZombieConnector(ss.Connector):
     """ Connect fast and slow zombies so agents don't become double-zombies """
 
