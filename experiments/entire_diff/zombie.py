@@ -199,26 +199,30 @@ class zombie_vaccine(ss.Intervention):
         """ Override this method to provide eligibility criteria, defaults to all people. """
         return self.sim.people.auids
 
-
 class ZombieConnector(ss.Connector):
     """ Connect fast and slow zombies so agents don't become double-zombies """
 
     def __init__(self, pars=None, **kwargs):
-        super().__init__(label='Zombie Connector', requires=[Zombie])
+        # Updated to use set_metadata for setting the name and requires to specify required modules
+        super().__init__(name='zombie_connector', **kwargs) 
 
-        self.default_pars(
-            rel_sus = 0
+        # Updated to use `define_pars` method from the new structure
+        self.define_pars(
+            rel_sus=0
         )
+        # Update parameters with any additional input arguments
         self.update_pars(pars, **kwargs)
         return
 
-    def update(self):
+    def step(self):
         """ Specify cross protection between fast and slow zombies """
 
+        # Access the people and disease modules using the updated sim and disease access patterns
         ppl = self.sim.people
         fast = self.sim.diseases['fast_zombie']
         slow = self.sim.diseases['slow_zombie']
 
+        # Implement the logic for modifying the susceptibility based on infection states
         fast.rel_sus[ppl.alive] = 1
         fast.rel_sus[slow.infected] = self.pars.rel_sus
 
