@@ -2,7 +2,7 @@
 # ---
 # ### ZOMBIE PANDEMIC!
 # 
-# IDM modeling demo of a Zombie pandemic using the **Starsim** framework [(source code)](https://github.com/starsimhub) [(documentation)](https://docs.idmod.org/projects/starsim/en/latest/). 
+# IDM modeling demo of a Zombie pandemic using the **Starsim** framework [(source code)](https://github.com/starsimhub/starsim) [(documentation)](https://docs.starsim.org). 
 # 
 # **Zombiesim** [source code](https://github.com/starsimhub/zombiesim) is available on GitHub.
 # 
@@ -17,13 +17,13 @@
 # <img src='img/CDC-Zombies-p10.jpg' width=260/>
 # <img src='img/CDC-Zombies-p21.jpg' width=260/>
 # 
-# setup: pip install starsim==0.5.2
+# setup: pip install starsim
 # ---
 
 # %% [markdown]
 # ---
 # ### Let's start by importing some basic packages
-# * **Starsim** is our new agent-based disease modeling framework. [Starsim source code](http://starsim.org) is open source and freely available. See also our emerging [online documentation and tutorials](https://docs.idmod.org/projects/starsim/en/latest/).
+# * **Starsim** is our new agent-based disease modeling framework. [Starsim source code](https://starsim.org) is open source and freely available. See also our emerging [online documentation and tutorials](https://docs.starsim.org).
 # * **zombie** is all the stuff we'll need to do zombie simulations
 # * Other imports are for numerical operations (**numpy**, **pandas**), convenience (**sciris**), and plotting (**seaborn**, **matplotlib**)
 # ---
@@ -34,8 +34,7 @@
 # %autoreload 2
 
 import starsim as ss # starsim is the Starsim framwork
-# from zombie import * # zombie is a custom zombie library, see zombie.py
-from zombie import *
+from zombie import * # zombie is a custom zombie library, see zombie.py
 
 # Numerical librarires and utilities
 import numpy as np
@@ -44,9 +43,9 @@ import sciris as sc
 
 # Plotting libraries
 import seaborn as sns
-from matplotlib import pyplot
+import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
-pyplot.rcParams['figure.dpi'] = 240
+plt.rcParams['figure.dpi'] = 240
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -66,9 +65,9 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 people = ss.People(n_agents=5_000)
 
 sir_pars = dict(
-    beta = 0.1,
+    beta = ss.beta(0.1),
     init_prev = ss.bernoulli(p=0.03),
-    dur_inf = ss.weibull(c=3, scale=10),
+    dur_inf = ss.weibull(c=3, scale=ss.dur(10)),
     p_death = ss.bernoulli(p=lambda _, sim, uids: sim.people.age[uids]/20),
 )
 sir = ss.SIR(sir_pars)
@@ -76,8 +75,9 @@ sir = ss.SIR(sir_pars)
 network = ss.RandomNet(n_contacts=ss.poisson(lam=4))
 sim = ss.Sim(people=people, diseases=sir, networks=network)
 sim.run()
-sim.plot();
-pyplot.savefig('sir.png')
+sim.plot()
+plt.savefig('sir.png')
+
 
 
 # %% [markdown]
@@ -139,7 +139,7 @@ networks = [
 
 # Configure and create demographic modules
 death_pars = dict(
-    death_rate = 15, # per 1,000
+    death_rate = ss.rate(15), # per 1,000 per year
     p_zombie_on_natural_death = ss.bernoulli(p=0.2),
 )
 deaths = DeathZombies(**death_pars)
@@ -156,7 +156,7 @@ sim = ss.Sim(sim_pars, people=people, diseases=zombie, networks=networks, demogr
 # Run the sim and plot results
 sim.run()
 sim.plot('zombie')
-pyplot.savefig('zombie.png')
+plt.savefig('zombie.png')
 
 # %% [markdown]
 # ---
@@ -185,8 +185,8 @@ pyplot.savefig('zombie.png')
 scens = {
     'Default assumptions': {},
     'More fast zombies': {'zombie_pars': dict(p_fast=ss.bernoulli(p=0.75))},
-    'Fast-->Slow zombies': {'zombie_pars': dict(p_fast=ss.bernoulli(p=0.75), dur_fast=ss.weibull(c=2, scale=2))},
-    'Finite infectious period': {'zombie_pars': dict(dur_inf=ss.normal(loc=5, scale=2))},
+    'Fast-->Slow zombies': {'zombie_pars': dict(p_fast=ss.bernoulli(p=0.75), dur_fast=ss.weibull(c=2, scale=ss.dur(2)))},
+    'Finite infectious period': {'zombie_pars': dict(dur_inf=ss.normal(loc=ss.dur(5), scale=ss.dur(2)))},
     'All zombies asymptomatic': {'zombie_pars': dict(p_symptomatic=ss.bernoulli(p=0))},
     'Less death on zombie infection': {'zombie_pars': dict(p_death_on_zombie_infection=ss.bernoulli(p=0.10))},
     'More zombies on natural death': {'death_pars': dict(p_zombie_on_natural_death=ss.bernoulli(p=0.5))},
@@ -220,7 +220,7 @@ def run_zombies(scen, rand_seed, zombie_pars=None, death_pars=None, intvs=[], **
 
     # Deaths
     death_defaults = dict(
-        death_rate = 15, # per 1,000 per year
+        death_rate = ss.rate(15), # per 1,000 per year
         p_zombie_on_natural_death = ss.bernoulli(p=0.2),
     )
     death_pars = sc.mergedicts(death_defaults, death_pars)
@@ -273,7 +273,6 @@ for skey, scen in scens.items():
 print(f'Running {len(cfgs)} zombie simulations...')
 T = sc.tic()
 results += sc.parallelize(run_zombies, iterkwargs=cfgs)
-
 print(f'Completed in {sc.toc(T, output=True):.1f}s')
 df = pd.concat(results).replace(np.inf, np.nan)
 
@@ -285,8 +284,8 @@ print(df.head())
 dfm = df.melt(id_vars=['Scen', 'Year', 'rand_seed'], value_vars=['Humans', 'Zombies', 'Zombie Prevalence', 'Zombie-Cause Mortality'], var_name='Channel', value_name='Value')
 g = sns.relplot(kind='line', data=dfm, col='Channel', x='Year', y='Value', hue='Scen', hue_order=scens.keys(), facet_kws=dict(sharey=False), col_wrap=2, height=4)
 g.set(ylim=(0, None))
-g.axes[2].yaxis.set_major_formatter(mtick.PercentFormatter(1));
-pyplot.savefig('zombie_scenarios.png')
+g.axes[2].yaxis.set_major_formatter(mtick.PercentFormatter(1))
+plt.savefig('zombie_scenarios.png')
 
 # %% [markdown]
 # ---
@@ -333,10 +332,10 @@ df_all = pd.concat([df, df_vx])
 
 # %%
 dfm = df_all.melt(id_vars=['Scen', 'Vx', 'Year', 'rand_seed'], value_vars=['Humans', 'Zombies', 'Zombie Prevalence', 'Zombie-Cause Mortality'], var_name='Channel', value_name='Value')
-g = sns.relplot(kind='line', data=dfm, col='Channel', x='Year', y='Value', hue='Scen', hue_order=scens.keys(), style='Vx', facet_kws=dict(sharey=False), col_wrap=2);
+g = sns.relplot(kind='line', data=dfm, col='Channel', x='Year', y='Value', hue='Scen', hue_order=scens.keys(), style='Vx', facet_kws=dict(sharey=False), col_wrap=2)
 g.set(ylim=(0, None))
-g.axes[2].yaxis.set_major_formatter(mtick.PercentFormatter(1));
-pyplot.savefig('zombie_scenarios_vx.png')
+g.axes[2].yaxis.set_major_formatter(mtick.PercentFormatter(1))
+plt.savefig('zombie_scenarios_vx.png')
 
 # %% [markdown]
 # ### Is this vaccine a good investment? How many lives are we saving?
@@ -344,9 +343,9 @@ pyplot.savefig('zombie_scenarios_vx.png')
 # %%
 dfp = df_all.pivot(index=['Year', 'Scen', 'rand_seed'], columns='Vx', values='Zombie-Cause Mortality')
 dfp['Lives Saved'] = dfp[False] - dfp[True]
-pyplot.figure()
+plt.figure()
 g = sns.barplot(data=dfp.reset_index(), x='Lives Saved', y='Scen', order=scens.keys())
-pyplot.savefig('zombie_lives_saved.png')
+plt.savefig('zombie_lives_saved.png')
 
 # %% [markdown]
 # ---
@@ -392,7 +391,7 @@ def run_multizombie(rand_seed):
     ]
 
     death_pars = dict(
-        death_rate = 15, # per 1,000 per year
+        death_rate = ss.rate(15), # per 1,000 per year
         p_zombie_on_natural_death = ss.bernoulli(p=0.2),
     )
     deaths = DeathZombies(**death_pars)
@@ -401,7 +400,7 @@ def run_multizombie(rand_seed):
 
     killzombies = KillZombies(year=2024, rate=0.1)
 
-    sim_pars = dict(start=2024, stop=2040, dt=0.5, rand_seed=rand_seed, label=scen, verbose=0)
+    sim_pars = dict(start=2024, stop=2040, dt=0.5, rand_seed=rand_seed, verbose=0)
     sim = ss.Sim(sim_pars, people=people, diseases=zombies, networks=networks, demographics=demog, interventions=killzombies, connectors=connector)
     sim.run()
 
@@ -436,8 +435,8 @@ ch = dfv.columns.drop(['Year', 'Speed', 'rand_seed'])
 dfm = dfv.melt(id_vars=['Year', 'Speed', 'rand_seed'], value_vars=ch, var_name='Channel', value_name='Value')
 g = sns.relplot(kind='line', data=dfm, col='Channel', hue='Speed', x='Year', y='Value', facet_kws=dict(sharey=False), height=3)
 g.set(ylim=(0, None))
-g.axes[0][1].yaxis.set_major_formatter(mtick.PercentFormatter(1));
-pyplot.savefig('zombie_multi.png')
+g.axes[0][1].yaxis.set_major_formatter(mtick.PercentFormatter(1))
+plt.savefig('zombie_multi.png')
 
 # %% [markdown]
 # # "When there's no more room in hell, the dead will walk the earth"

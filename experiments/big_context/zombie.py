@@ -94,12 +94,12 @@ class Zombie(ss.SIR):
 class DeathZombies(ss.Deaths):
     """ Extension of Deaths to make some agents who die turn into zombies """
     def __init__(self, pars=None, metadata=None, **kwargs):
-        super().__init__()
+        super().__init__(death_rate=kwargs.pop('death_rate', None))
         self.define_pars(
             inherit = True,
             p_zombie_on_natural_death = ss.bernoulli(p=0.75), # Probability of becoming a zombie on death
-            death_rate = kwargs.pop('death_rate', None),
         )
+        kwargs.pop('death_rate', None)
         self.update_pars(pars, **kwargs)
         return
 
