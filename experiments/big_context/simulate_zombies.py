@@ -68,7 +68,7 @@ sir_pars = dict(
     beta = ss.beta(0.1),
     init_prev = ss.bernoulli(p=0.03),
     dur_inf = ss.weibull(c=3, scale=ss.dur(10)),
-    p_death = ss.bernoulli(p=lambda _, sim, uids: sim.people.age[uids]/ss.dur(20)),
+    p_death = ss.bernoulli(p=lambda _, sim, uids: sim.people.age[uids]/20),
 )
 sir = ss.SIR(sir_pars)
 
@@ -143,11 +143,11 @@ death_pars = dict(
     p_zombie_on_natural_death = ss.bernoulli(p=0.2),
 )
 deaths = DeathZombies(**death_pars)
-births = ss.Pregnancy(fertility_rate=ss.rate(175)) # per 1,000 women 15-49 annually
+births = ss.Pregnancy(fertility_rate=175) # per 1,000 women 15-49 annually
 demog = [births, deaths]
 
 # Create an intervention that kills symptomatic zombies
-interventions = KillZombies(year=2024, rate=ss.rate(0.1))
+interventions = KillZombies(year=2024, rate=0.1)
 
 # And finally bring everything together in a sim
 sim_pars = dict(start=2024, stop=2040, dt=0.5, verbose=0)
@@ -227,11 +227,11 @@ def run_zombies(scen, rand_seed, zombie_pars=None, death_pars=None, intvs=[], **
     deaths = DeathZombies(**death_pars)
 
     # Births
-    births = ss.Pregnancy(fertility_rate=ss.rate(175)) # per 1,000 women 15-49 per year
+    births = ss.Pregnancy(fertility_rate=175) # per 1,000 women 15-49 per year
     demog = [births, deaths]
 
     # Interventions
-    interventions = KillZombies(year=2024, rate=ss.rate(0.1))
+    interventions = KillZombies(year=2024, rate=0.1)
     interventions = [interventions] + sc.promotetolist(intvs) # Add interventions passed in
 
     # Create and run the simulation
@@ -395,10 +395,10 @@ def run_multizombie(rand_seed):
         p_zombie_on_natural_death = ss.bernoulli(p=0.2),
     )
     deaths = DeathZombies(**death_pars)
-    births = ss.Pregnancy(fertility_rate=ss.rate(175)) # per 1,000 women 15-49 per year
+    births = ss.Pregnancy(fertility_rate=175) # per 1,000 women 15-49 per year
     demog = [births, deaths]
 
-    killzombies = KillZombies(year=2024, rate=ss.rate(0.1))
+    killzombies = KillZombies(year=2024, rate=0.1)
 
     sim_pars = dict(start=2024, stop=2040, dt=0.5, rand_seed=rand_seed, verbose=0)
     sim = ss.Sim(sim_pars, people=people, diseases=zombies, networks=networks, demographics=demog, interventions=killzombies, connectors=connector)
